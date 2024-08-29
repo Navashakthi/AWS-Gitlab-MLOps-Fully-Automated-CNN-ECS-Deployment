@@ -4,6 +4,15 @@ A fully automated MLOps with Gitlab pipeline that runs a CNN image classificatio
 
 This project leverages a CI/CD pipeline for building, training, deploying, and managing machine learning models using AWS services like SageMaker, ECS, and ECR. The pipeline is configured using GitLab CI/CD and facilitates the entire lifecycle of a CNN model, from algorithm containerization to model deployment on an inference endpoint.
 
+## Prerequisites
+Before running this pipeline, ensure you have the following prerequisites:
+
+- **AWS Account**: An active AWS account with permissions to use SageMaker, S3, and IAM services.
+- **S3 Bucket:** An S3 bucket where training data and model artifacts will be stored.
+- **IAM Role:** An IAM role with the necessary permissions for SageMaker to access S3 and ECR.
+- **AWS CLI:** AWS CLI configured with your access and secret keys, and the region set.
+- **GitLab CI/CD:** A GitLab project with CI/CD enabled and the environment variables set mentioned below.
+
 ### Pipeline Stages
 
 The pipeline consists of the following stages:
