@@ -13,7 +13,7 @@ Before running this pipeline, ensure you have the following prerequisites:
 - **AWS CLI:** AWS CLI configured with your access and secret keys, and the region set.
 - **GitLab CI/CD:** A GitLab project with CI/CD enabled and the environment variables set mentioned below.
 
-### Pipeline Stages
+## Pipeline Stages
 
 The pipeline consists of the following stages:
 
@@ -27,7 +27,7 @@ The pipeline consists of the following stages:
 8. **deploy_service**: Deploys an ECS service that runs the task definition created in the previous stage.
 9. **inference_endpoint**: Fetches the inference endpoint created by the ECS service for model inference.
 
-### Pipeline Configuration
+## Pipeline Configuration
 
 The pipeline configuration includes several environment variables that need to be set:
 
@@ -69,21 +69,43 @@ Also you can set these variables in your Gitlab CI/CD settings.
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/your-repo/project-name.git
    cd project-name
    ```
 
-2. Install the necessary Python packages:
+2. **Install the necessary Python packages:**
    ```bash
    pip install boto3 sagemaker tensorflow
    ```
 
-3. Ensure Docker and AWS CLI are installed and configured on your machine:
+3. **Ensure Docker and AWS CLI are installed and configured on your machine:**
    ```bash
    aws configure
    ```
+4. **Review the `.gitlab-ci.yml` File**:
+   - Verify the pipeline stages and commands in the `.gitlab-ci.yml` file.
+   - Make sure the paths and commands match your project structure and requirements.
+
+5. **Push to GitLab**:
+   - Commit and push your changes to GitLab:
+     ```bash
+     git add .
+     git commit -m "Initial commit"
+     git push origin main
+     ```
+
+6. **Monitor the Pipeline**:
+   - Navigate to your GitLab project and go to **CI/CD** > **Pipelines**.
+   - Monitor the progress of your pipeline stages: preprocess, train, build, config_deploy, deploy, predict, and cleanup.
+
+7. **Verify the Results**:
+   - Once the pipeline execution is complete, verify that the ECS endpoint is created and the inferences are successful.
+   - Check that the resources are deleted after the cleanup stage to ensure cost savings.
+
+By following these steps, you can execute the entire CI/CD pipeline to automate the training and deployment of a CNN model using Amazon SageMaker with GitLab CI/CD.
+
 
 ### Usage
 
@@ -105,7 +127,7 @@ Also you can set these variables in your Gitlab CI/CD settings.
 6. **Fetch Inference Endpoint**:
    - The `inference_endpoint` stage fetches the endpoint for making predictions using the deployed model.
 
-### CNN Model for Image Classification and Serving
+## CNN Model for Image Classification and Serving
 
 The project involves training and serving a Convolutional Neural Network (CNN) model designed to classify images into six categories: Cat, Dog, Rabbit, Cow, Horse, and Sheep. The process is divided into two primary phases: training the model and serving it via a Flask application.
 
@@ -149,13 +171,13 @@ The `serve.py` script sets up a Flask application to serve the trained model:
   - The Flask app is configured to run on `0.0.0.0` with port `5000`, making it accessible from any IP address within the network.
   - If the `uploaded_images` directory does not exist, it is created to store uploaded images temporarily.
 
-### Summary
+## Summary
 This project demonstrates a complete workflow for building, training, and deploying a CNN model for image classification. The model is capable of distinguishing between six different classes, and the trained model can be easily served and accessed via a web interface, allowing users to upload images and receive predictions in real-time.
 
-### Contributing
+## Contributing
 
 Contributions are welcome! Please submit a pull request with any enhancements or bug fixes.
 
-### License
+## License
 
 This project is licensed under the GNU GENERAL PUBLIC LICENSE Version 2 License. See the [LICENSE](LICENSE) file for more information.
