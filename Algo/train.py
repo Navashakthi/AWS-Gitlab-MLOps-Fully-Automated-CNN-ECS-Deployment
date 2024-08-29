@@ -14,7 +14,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 # Parameters
 img_width, img_height = 64, 64
 batch_size = 32
-epochs = 10
+epochs = 50
 num_classes = 6
 s3_bucket = 'aws-bucket-name'
 s3_train_data_key = 'cnn-classification/dataset/training_set.zip'
