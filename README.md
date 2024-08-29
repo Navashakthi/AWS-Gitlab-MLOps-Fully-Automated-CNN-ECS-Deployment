@@ -48,6 +48,8 @@ variables:
   MODEL_APPROVAL_STATUS: "Approved" # "PendingManualApproval"
   MODEL_NAME: CNN-Model # Empty model dir for saving latest model
 ```
+To successfully run this pipeline, you need to replace the placeholder variables with your specific AWS and project details.
+Also you can set these variables in your Gitlab CI/CD settings.
 
 ### Requirements
 
