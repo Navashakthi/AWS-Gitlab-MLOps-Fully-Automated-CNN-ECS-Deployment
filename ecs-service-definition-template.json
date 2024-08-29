@@ -1,0 +1,35 @@
+{
+  "cluster": "${ECS_CLUSTER_NAME}",
+  "serviceName": "${ECS_SERVICE_NAME}",
+  "taskDefinition": "your-task-name",
+  "capacityProviderStrategy": [
+      {
+          "capacityProvider": "FARGATE",
+          "weight": 1
+      }
+  ],
+  "loadBalancers": [
+      {
+          "targetGroupArn": "${TARGET_GROUP_ARN}",
+          "containerName": "test",
+          "containerPort": 5000
+      }
+  ],
+  "desiredCount": 1,
+  "networkConfiguration": {
+      "awsvpcConfiguration": {
+          "subnets": [
+              "${SUBNET_ID1}",
+              "${SUBNET_ID2}"
+          ],
+          "securityGroups": [
+              "${SECURITY_GROUP}"
+          ],
+          "assignPublicIp": "ENABLED"
+      }
+  },
+  "deploymentConfiguration": {
+      "maximumPercent": 200,
+      "minimumHealthyPercent": 100
+  }
+}

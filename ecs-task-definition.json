@@ -1,0 +1,48 @@
+{
+  "family": "your-task-family-name",
+  "containerDefinitions": [
+      {
+          "name": "test",
+          "image": "uri-of-your-serving-repository-latest-image",
+          "cpu": 0,
+          "portMappings": [
+              {
+                  "name": "test-5000-tcp",
+                  "containerPort": 5000,
+                  "hostPort": 5000,
+                  "protocol": "tcp",
+                  "appProtocol": "http"
+              }
+          ],
+          "essential": true,
+          "environment": [],
+          "environmentFiles": [],
+          "mountPoints": [],
+          "volumesFrom": [],
+          "ulimits": [],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-group": "/ecs/test",
+                  "awslogs-create-group": "true",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+          },
+          "systemControls": []
+      }
+  ],
+  "taskRoleArn": "task-role-arn",
+  "executionRoleArn": "execution-role-arn",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+      "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "2048",
+  "runtimePlatform": {
+      "cpuArchitecture": "X86_64",
+      "operatingSystemFamily": "LINUX"
+  }
+}

@@ -1,0 +1,8 @@
+tensorflow
+numpy
+pandas
+scikit-image
+matplotlib
+flask
+flask-cors
+boto3
