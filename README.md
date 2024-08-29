@@ -1,7 +1,5 @@
 # AWS-Gitlab-MLOps-Fully-Automated-CNN-ECS-Deployment
 A fully automated MLOps with Gitlab pipeline that runs a CNN image classification model and serves on ECS cluster
-## Project Name
-
 ### Overview
 
 This project leverages a CI/CD pipeline for building, training, deploying, and managing machine learning models using AWS services like SageMaker, ECS, and ECR. The pipeline is configured using GitLab CI/CD and facilitates the entire lifecycle of a CNN model, from algorithm containerization to model deployment on an inference endpoint.
