@@ -43,9 +43,6 @@ def get_load_balancer_dns(cluster_name, service_name):
 
     return dns_names
 
-
- 
-
 if __name__ == "__main__":
     cluster_name = 'test'
     service_name = os.getenv('ECS_SERVICE_NAME')
