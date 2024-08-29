@@ -113,7 +113,7 @@ The `train.py` script handles the training phase:
   - The output from these layers is flattened and passed through a fully connected layer with 256 neurons, followed by a dropout layer to prevent overfitting, and finally, a softmax output layer with six neurons for classification.
 
 - **Training**:
-  - The model is trained for 10 epochs using the Adam optimizer and categorical cross-entropy loss, with a batch size of 32.
+  - The model is trained for 50 epochs using the Adam optimizer and categorical cross-entropy loss, with a batch size of 32.
   - Training is validated using a separate validation dataset, and metrics like loss and accuracy are computed.
 
 - **Saving and Deploying**:
