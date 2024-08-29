@@ -111,27 +111,6 @@ Also you can set these variables in your Gitlab CI/CD settings.
 
 By following these steps, you can execute the entire CI/CD pipeline to automate the training and deployment of a CNN model using Amazon SageMaker with GitLab CI/CD.
 
-
-### Usage
-
-1. **Build and Push Algorithm**:
-   - The `build_algorithm` and `push_algorithm` stages will build the Docker image for the algorithm and push it to AWS ECR.
-
-2. **Train Model**:
-   - The `train_model` stage triggers a SageMaker training job and waits for its completion.
-
-3. **Register Model**:
-   - The `register_model` stage registers the trained model in SageMaker's model registry for versioning and deployment.
-
-4. **Build and Push Serving Image**:
-   - The `docker_build` and `docker_push` stages build and push the Docker image that contains the trained model to AWS ECR.
-
-5. **Deploy ECS Task and Service**:
-   - The `deploy_task` and `deploy_service` stages deploy the Docker image as an ECS task and service, making the model available for inference.
-
-6. **Fetch Inference Endpoint**:
-   - The `inference_endpoint` stage fetches the endpoint for making predictions using the deployed model.
-
 ## CNN Model for Image Classification and Serving
 
 The project involves training and serving a Convolutional Neural Network (CNN) model designed to classify images into six categories: Cat, Dog, Rabbit, Cow, Horse, and Sheep. The process is divided into two primary phases: training the model and serving it via a Flask application.
