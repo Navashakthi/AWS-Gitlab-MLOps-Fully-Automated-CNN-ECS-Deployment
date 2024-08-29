@@ -1,0 +1,228 @@
+image: python:3.8
+
+stages:
+  - build_algorithm
+  - push_algorithm
+  - train_model
+  - register_model
+  - docker_build
+  - docker_push
+  - deploy_task
+  - deploy_service
+  - inference_endpoint
+
+variables:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "your-aws-account-id"
+  AWS_S3_BUCKET: aws-buckeet-name
+  AWS_S3_PREFIX: "cnn-classification"
+  SAGEMAKER_ROLE: your-sagemaker-role-arn
+  AWS_ACCESS_KEY_ID: aws-access-key-id
+  AWS_SECRET_ACCESS_KEY: aws-secret-access-key
+  ECR_ALGO_REPO_NAME: "your-ecr-algorithm-repo-name"
+  ECR_REPO_NAME: "your-ecr-serving-image-repo-name"
+  DOCKER_TLS_CERTDIR: "/certs"
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  IMAGE_VERSION: "latest"
+  ECS_CLUSTER_NAME: "test"
+  ECS_TASK_FAMILY: "ecs-task-family-name"
+  ECS_SERVICE_NAME: "ecs-service-name" # Change name for every execution
+  TARGET_GROUP_ARN: "your-target-group-arn"
+  SUBNET_ID1: "subnet-id1"
+  SUBNET_ID2: "subnet-id2"
+  SECURITY_GROUP: "sg-name"
+  TRAINING_JOB_NAME : CNN-Training-Job-7 # change name for every execution
+  MODEL_PACKAGE_GROUP_NAME : "sagemaker-model-registry-group-name"
+  MODEL_APPROVAL_STATUS : "Approved" #"PendingManualApproval"
+  MODEL_NAME : CNN-Model #Empty model dir for saving latets model
+  
+
+cache:
+  paths:
+    - .pip_cache/
+
+before_script:
+  - pip install boto3 sagemaker tensorflow
+  - pip install --upgrade sagemaker
+  - pip3 install awscli
+  - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+  - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+  - aws configure set default.region $AWS_REGION
+
+
+build_algorithm:
+  stage: build_algorithm
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/docker:19.03.12  
+  services:
+    - docker:dind 
+  variables:
+    DOCKER_DRIVER: overlay2
+    
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+  script:
+    - echo "Publishing Docker image to GitLab image registry"
+    - export IMAGE_VERSION=$(($CI_PIPELINE_ID)).0.0
+    - docker build --build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY --build-arg AWS_REGION=$AWS_REGION -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME -t $CI_REGISTRY_IMAGE:latest -f Algo/Dockerfile .
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME $CI_REGISTRY_IMAGE:$IMAGE_VERSION
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE:$IMAGE_VERSION
+    - docker push $CI_REGISTRY_IMAGE:latest 
+
+push_algorithm:
+  stage: push_algorithm
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/docker:19.03.12  
+  services:
+    - docker:dind 
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+    CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+  before_script:
+    - apk add --no-cache docker-cli
+    - apk add --no-cache python3 py3-pip
+    - pip install awscli
+
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build --pull --build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY --build-arg AWS_REGION=$AWS_REGION -t $CONTAINER_TEST_IMAGE -f Algo/Dockerfile .
+    - echo "Docker Pull successfull"    
+    - docker tag $CONTAINER_TEST_IMAGE $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_ALGO_REPO_NAME:latest
+    - echo "Logging into AWS ECR..."
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_ALGO_REPO_NAME:latest
+    - echo "Pushed docker image from Gitlab to ECR"
+
+train_model:
+  stage: train_model
+  script:
+    - export TRAIN_IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_ALGO_REPO_NAME:latest"
+    - echo $TRAIN_IMAGE
+    - python create_training_job.py
+    - MAX_WAIT_MINUTES=30
+    - WAITED=0
+    - |
+      while true; do
+        STATUS=$(aws sagemaker describe-training-job --training-job-name $TRAINING_JOB_NAME --region $AWS_REGION --query 'TrainingJobStatus' --output text)
+        echo "Training job status: $STATUS"
+        if [ "$STATUS" == "Completed" ]; then
+          echo "Training job completed."
+          break
+        elif [ "$STATUS" == "Failed" ]; then
+          echo "Training job failed."
+          exit 1
+        elif [ "$WAITED" -ge "$MAX_WAIT_MINUTES" ]; then
+          echo "Training job did not complete within the timeout period."
+          exit 1
+        else
+          echo "Training job still in progress..."
+          sleep 60
+          WAITED=$((WAITED + 1))
+        fi
+      done
+
+
+register_model:
+  stage: register_model
+  image: python:3.8
+  script:
+    - aws sagemaker create-model-package --model-package-group-name "$MODEL_PACKAGE_GROUP_NAME" --model-package-description "Version 1 of CNN Model" --model-approval-status $MODEL_APPROVAL_STATUS --source-uri "s3://$AWS_S3_BUCKET/$AWS_S3_PREFIX/output/$TRAINING_JOB_NAME/output/model.tar.gz"
+
+docker_build:
+  stage: docker_build
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/docker:19.03.12  
+  services:
+    - docker:dind 
+  variables:
+    DOCKER_DRIVER: overlay2
+    
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+  script:
+    - echo "Publishing Docker image to GitLab image registry"
+    - export IMAGE_VERSION=$(($CI_PIPELINE_ID)).0.0
+    - export MODEL_PATH="s3://$AWS_S3_BUCKET/$AWS_S3_PREFIX/output/$TRAINING_JOB_NAME/output/model.tar.gz"
+    - docker build --build-arg MODEL_PATH=$MODEL_PATH --build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY --build-arg AWS_REGION=$AWS_REGION -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME -t $CI_REGISTRY_IMAGE:latest -f Dockerfile .
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME $CI_REGISTRY_IMAGE:$IMAGE_VERSION
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE:$IMAGE_VERSION
+    - docker push $CI_REGISTRY_IMAGE:latest 
+
+
+docker_push:
+  stage: docker_push
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/docker:19.03.12  
+  services:
+    - docker:dind 
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+    CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+  before_script:
+    - apk add --no-cache docker-cli
+    - apk add --no-cache python3 py3-pip
+    - pip install awscli
+
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - export MODEL_PATH="s3://$AWS_S3_BUCKET/$AWS_S3_PREFIX/output/$TRAINING_JOB_NAME/output/model.tar.gz"
+    - docker build --pull --build-arg MODEL_PATH=$MODEL_PATH --build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY --build-arg AWS_REGION=$AWS_REGION -t $CONTAINER_TEST_IMAGE .
+    - echo "Docker Pull successfull"    
+    - docker tag $CONTAINER_TEST_IMAGE $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest
+    - echo "Logging into AWS ECR..."
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest
+    - echo "Pushed docker image from Gitlab to ECR"
+
+deploy_task:
+  stage: deploy_task
+  image: amazonlinux:2
+  variables:
+    ECR_IMAGE_TAG: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:latest
+  
+  before_script:
+  - yum update -y
+  - yum install -y python3-pip gettext
+  - pip3 install awscli
+  - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+  - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+  - aws configure set default.region $AWS_REGION
+
+  script:
+    - echo "Registering ECS task definition..."
+    - aws ecs register-task-definition --cli-input-json file://ecs-task-definition.json
+  
+
+deploy_service:
+  stage: deploy_service
+  image: alpine:latest
+  before_script:
+    - apk update
+    - apk add --no-cache python3 py3-pip gettext
+    - pip3 install awscli --break-system-packages
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    - aws configure set default.region $AWS_REGION
+
+  script:
+  - echo "Checking for ecs-service-definition-template.json file..."
+  - ls -l ecs-service-definition-template.json
+  - echo "Substituting environment variables in service definition template..."
+  - envsubst < ecs-service-definition-template.json > ecs-service-definition.json
+  - echo "Displaying the substituted service definition..."
+  - cat ecs-service-definition.json
+  - echo "Creating ECS service..."
+  - aws ecs create-service --cli-input-json file://ecs-service-definition.json
+
+inference_endpoint:
+  stage: inference_endpoint
+  image: python:3.9
+  script:
+    - pip install boto3
+    - python fetch_enpoint.py
