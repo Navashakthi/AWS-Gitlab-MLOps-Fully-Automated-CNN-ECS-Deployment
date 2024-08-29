@@ -96,6 +96,53 @@ Also you can set these variables in your Gitlab CI/CD settings.
 6. **Fetch Inference Endpoint**:
    - The `inference_endpoint` stage fetches the endpoint for making predictions using the deployed model.
 
+### CNN Model for Image Classification and Serving
+
+The project involves training and serving a Convolutional Neural Network (CNN) model designed to classify images into six categories: Cat, Dog, Rabbit, Cow, Horse, and Sheep. The process is divided into two primary phases: training the model and serving it via a Flask application.
+
+#### **1. Training the CNN Model**
+
+The `train.py` script handles the training phase:
+
+- **Data Handling**:
+  - The script downloads and extracts training and validation datasets from an S3 bucket. 
+  - Data augmentation is applied to enhance the model's generalization, using techniques such as rescaling, shearing, zooming, and horizontal flipping.
+
+- **Model Architecture**:
+  - The model consists of three convolutional layers with increasing filter sizes (32, 64, and 128 filters, respectively) followed by max-pooling layers.
+  - The output from these layers is flattened and passed through a fully connected layer with 256 neurons, followed by a dropout layer to prevent overfitting, and finally, a softmax output layer with six neurons for classification.
+
+- **Training**:
+  - The model is trained for 10 epochs using the Adam optimizer and categorical cross-entropy loss, with a batch size of 32.
+  - Training is validated using a separate validation dataset, and metrics like loss and accuracy are computed.
+
+- **Saving and Deploying**:
+  - After training, the model is saved as `cnn-classification-model.h5`.
+  - The trained model is then uploaded to an S3 bucket for storage and deployment.
+
+#### **2. Serving the CNN Model**
+
+The `serve.py` script sets up a Flask application to serve the trained model:
+
+- **Model Loading**:
+  - The model is loaded from a local file (`cnn_classification_model.h5`). If the model file is not found, an error is raised.
+
+- **Flask Application**:
+  - The application is initialized with CORS enabled, allowing cross-origin requests.
+  - The home route (`/`) renders the index page, where users can interact with the model.
+  - The `/image` route handles image uploads, preprocesses the image, and makes predictions using the loaded model.
+
+- **Image Prediction**:
+  - Uploaded images are resized and transformed to match the input shape expected by the model (64x64 pixels).
+  - The model predicts the class of the image, and the result is returned as a JSON response, mapping the predicted class to one of the six categories.
+
+- **Deployment**:
+  - The Flask app is configured to run on `0.0.0.0` with port `5000`, making it accessible from any IP address within the network.
+  - If the `uploaded_images` directory does not exist, it is created to store uploaded images temporarily.
+
+### Summary
+This project demonstrates a complete workflow for building, training, and deploying a CNN model for image classification. The model is capable of distinguishing between six different classes, and the trained model can be easily served and accessed via a web interface, allowing users to upload images and receive predictions in real-time.
+
 ### Contributing
 
 Contributions are welcome! Please submit a pull request with any enhancements or bug fixes.
